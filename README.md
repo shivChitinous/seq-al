@@ -1,7 +1,7 @@
 # seq-al
 ## Aligning DNA and Protein sequences using Dynamic Programming
  
- In these notebooks, I implement 
+The following algorithms are implemented in the notebooks
  1. The Needleman-Wunsch Algorithm for global sequence alignment with linear gap penalties.
  2. Modified Gotoh's Algorithm for global sequence alignment with affine gap penalties.
  
