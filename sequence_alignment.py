@@ -171,6 +171,75 @@ def local_dp(seq_1,seq_2,S,g,N=10,max_i=None,disp_scoring=False,disp_tracer=Fals
     return M,tracer,alignment
 
 
+def affine_local_dp(seq_1,seq_2,S,g_open,g_ext,N=10,max_i=None,disp_scoring=False,disp_tracer=False,
+              disp_alignments=False,high_low=False):
+    
+    #set max iterations
+    if max_i is None: max_i = N**2
+        
+    #initialize the scoring matrix
+    m = len(seq_1); n = len(seq_2)
+    M = np.zeros([m+1,n+1])
+    
+    #initialize the helpers
+    U = np.copy(M); L = np.copy(M)
+    U[0,0] = 0; L[0,0] = 0
+    U[0,1:] = 2*g_open; L[0,1:] = 2*g_open
+    U[1:,0] = 2*g_open; L[1:,0] = 2*g_open
+    
+    #fill up
+    tracer = np.zeros([np.shape(M)[0],np.shape(M)[1],7])
+    for i in range(1,m+1):
+        for j in range(1,n+1):
+            l_arr = np.array([M[i,j-1]+g_open,L[i,j-1]+g_ext])
+            L[i,j] = np.max(np.hstack([l_arr,0]))
+            l_where = (l_arr==np.max(l_arr))*(L[i,j]!=0)
+
+            u_arr = np.array([M[i-1,j]+g_open,U[i-1,j]+g_ext])
+            U[i,j] = np.max(np.hstack([u_arr,0]))
+            u_where = (u_arr==np.max(u_arr))*(U[i,j]!=0)
+
+            m_arr = np.array([M[i-1,j-1]+(S[seq_1[i-1]][seq_2[j-1]]),U[i,j],L[i,j]])
+            M[i,j] = np.max(np.hstack([m_arr,0]))
+            m_where = (m_arr==np.max(m_arr))*(M[i,j]!=0)
+
+            idx = np.hstack([m_where,u_where,l_where])
+            tracer[i,j,idx] = 1
+            
+    #traceback
+    alignment = traceback_iterator(tracer,seq_1,seq_2,mat=M,affine=True,local=True,
+                                   N=N,max_i=max_i,high_low=high_low)
+            
+    if (disp_alignments is True):
+        print("Max. score = "+str(np.max(M)))
+        for i,e in enumerate(alignment):
+            print(str(i+1)+".","\n",e[0],"\n",e[1],"\n")
+    
+    if disp_scoring is True:
+        fig, ax = plt.subplots(1,3,figsize = (12,4))
+        for i,p in enumerate([[M,"$M$"],[U,"$U$"],[L,"$L$"]]):
+            sns.heatmap(p[0],linecolor='white',linewidth=1,square=True,cbar=True,cbar_kws={"shrink": .5},ax=ax[i]);
+            ax[i].set_title(p[1])
+        fig.suptitle("Scoring Matrices");
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    if disp_tracer is True:
+        fig, ax = plt.subplots(3,3,figsize = (6,6))
+
+        for i,p in enumerate([[0,0,r"$\nwarrow_{M}$"],[0,1,r"$\odot_{U}$"],[0,2,r"$\odot_{L}$"],
+                              [1,0,r"$\uparrow_{M}$"],[1,1,r"$\uparrow_{U}$"],
+                              [2,0,r"$\leftarrow_{M}$"],[2,2,r"$\leftarrow_{L}$"]]):
+            sns.heatmap(tracer[:,:,i],cmap="coolwarm",vmin=-0.5,vmax=0.6,linecolor='white',
+                        linewidth=1,square=True,cbar=False,ax=ax[p[0]][p[1]])
+            ax[p[0]][p[1]].set_title(p[2])
+
+        fig.delaxes(ax[1][2]); fig.delaxes(ax[2][1])
+        fig.suptitle("tracer sub-matrices")
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95]);
+    
+    return M,L,U,tracer,alignment
+
+
 def traceback(tracer,seq_1,seq_2,mat=None,local=False,affine=False,representation=False,roadmap=0):
     
     #get sequence lengths
