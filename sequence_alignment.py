@@ -264,22 +264,27 @@ def traceback(tracer,seq_1,seq_2,mat=None,local=False,affine=False,representatio
             y=np.append(y,start_gap)
         elif start_size<0:
             x=np.append(x,start_gap)
-
-    if affine is True: 
-        Tr = np.zeros([7]) #define a 7x1 Tr array
-        st_lv = 0 #start in midgard
+    
+    st_lv = 0 #start in midgard
         
     while ((st[0]>1) & (st[1]>1)):
        
-        B = np.zeros([2,2]) #define 2x2 box
+        B = np.zeros([2,2]) #define 2x2 box which specifies which way to move
         
-        if representation is True: B = np.copy(tracer[st[0]-2:st[0],st[1]-2:st[1]])
+        if affine is True: 
+            Tr = np.zeros([7]) #define a 7x1 Tr array (will store arrows at each step)
+        else:
+            Tr = np.zeros([3]) #define a 3x1 Tr array (will store arrows at each step)
         
+        if representation is True:
+            Tr[0] = np.copy(tracer[st[0]-2,st[1]-2])
+            Tr[1] = np.copy(tracer[st[0]-2,st[1]-1])
+            Tr[2] = np.copy(tracer[st[0]-1,st[1]-2])
+            
         elif affine is False:
-            B[0,0] = np.copy(tracer[st[0]-1,st[1]-1,0])
-            B[0,1] = np.copy(tracer[st[0]-1,st[1]-1,1])
-            B[1,0] = np.copy(tracer[st[0]-1,st[1]-1,2])
-            B[1,1] = 1
+            Tr[0] = np.copy(tracer[st[0]-1,st[1]-1,0])
+            Tr[1] = np.copy(tracer[st[0]-1,st[1]-1,1])
+            Tr[2] = np.copy(tracer[st[0]-1,st[1]-1,2])
     
         else:
             #tracer
@@ -291,48 +296,42 @@ def traceback(tracer,seq_1,seq_2,mat=None,local=False,affine=False,representatio
             Tr[5] = np.copy(tracer[st[0]-1,st[1]-1,5])
             Tr[6] = np.copy(tracer[st[0]-1,st[1]-1,6])
         
-        #bifurcations for non affine penalties
-        if affine is False:
-            check = np.array([B[1,0]==1,B[0,0]==1,B[0,1]==1])
-            choose = np.array([[1,0],[0,0],[0,1]])
-            if np.sum(check)>1:
-                B[0,0] = 0; B[0,1] = 0; B[1,0] = 0 #reset
-                if roadmap == 0: r = np.random.choice(np.where(check)[0],1)[0] #random turn
-                elif roadmap == 1: r = np.where(check)[0][-1] #highroad
-                elif roadmap == 2: r = np.where(check)[0][0] #lowroad
+        #bifurcations
+        if affine is True: levels = [[2,0,1],[4,3],[6,5]]
+        else: levels = [[2,0,1]]
+        for l in levels:
+            if np.sum(Tr[l])>1:
+                choose = np.where(Tr[l]==1)[0]
+                Tr[l] = 0
+                if roadmap == 0: r = np.random.choice(choose,1)[0] #random turning
+                elif roadmap == 1: r = choose[-1] #highroad
+                elif roadmap == 2: r = choose[0] #lowroad
                 else: raise Exception("roadmap only accepts 0: random turning, 1: highroad, 2: lowroad")
-                B[choose[r][0],choose[r][1]] = 1
-        
-        #bifurcations for affine penalties
-        else:    
-            levels = [[0,3],[3,5],[5,7]]
-            for l in levels:
-                if np.sum(Tr[l[0]:l[1]])>1:
-                    choose = np.where(Tr[l[0]:l[1]]==1)[0]
-                    Tr[l[0]:l[1]] = 0
-                    if roadmap == 0: r = np.random.choice(choose,1)[0] #random turning
-                    elif roadmap == 1: r = choose[-1] #highroad
-                    elif roadmap == 2: r = choose[0] #lowroad
-                    else: raise Exception("roadmap only accepts 0: random turning, 1: highroad, 2: lowroad")
-                    Tr[l[0]:l[1]][r] = 1
+                Tr[l[r]] = 1
                   
-            #level up-down
-            if ((Tr[0]==1) & (st_lv==0)): #diagonal
-                B[0,0] = 1
+        #level up-down
+        if ((Tr[0]==1) & (st_lv==0)): #diagonal
+            B[0,0] = 1
 
-            if ((Tr[1]==1) & (st_lv==0)): #level up
-                st_lv = 1
+        if ((Tr[1]==1) & (st_lv==0)): 
+            if affine is True: st_lv = 1 #level up
+            else:
+                B[0,1] = 1
 
-            if ((Tr[2]==1) & (st_lv==0)): #level down
-                st_lv = 2
-
+        if ((Tr[2]==1) & (st_lv==0)): 
+            if affine is True: st_lv = 2 #level down
+            else:
+                B[1,0] = 1
+                
+        #affine gaps allow for level shifts
+        if affine is True:
             if ((Tr[4]==1) & (st_lv==1)): #move up
                 B[0,1] = 1
-                
+
             if ((Tr[3]==1) & (st_lv==1)): #move up back to main
                 st_lv = 0
                 B[0,1] = 1
-                
+
             if ((Tr[6]==1) & (st_lv==2)): #move left
                 B[1,0] = 1
 
