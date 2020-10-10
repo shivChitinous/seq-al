@@ -5,6 +5,7 @@ The following algorithms are implemented
  1. Needleman-Wunsch Algorithm for global sequence alignment with linear gap penalties.
  2. Modified Gotoh's Algorithm for global sequence alignment with affine gap penalties.
  3. Smith-Waterman Algorithm for local sequence alignment with linear gap penalties.
+ 4. Smith-Waterman Algorithm for local sequence alignment with affine gap penalties.
  
 *References*:
 1. [Rolf Backofen (2010). Lecture Slides for Bioinformatics I — SS 2010. *Institut für Informatik.*](http://helios.mi.parisdescartes.fr/~lomn/Cours/BI/Material2019/gap-penalty-gotoh.pdf)
